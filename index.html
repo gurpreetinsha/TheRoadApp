@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>TheRoadApp</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0; text-align: center; }
+    #map { height: 80vh; margin-top: 10px; }
+    #log { white-space: pre-wrap; text-align: left; margin: 10px; max-height: 50vh; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
+    button { margin: 5px; padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    #roleSelect, #collectorUI, #viewerUI { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h2>🛣️ TheRoadApp</h2>
+
+  <div id="roleSelect">
+    <p>Who are you?</p>
+    <button onclick="selectRole('collector')">Collector (Phone Sensor)</button>
+    <button onclick="selectRole('viewer')">Viewer (Live Map)</button>
+  </div>
+
+  <!-- Collector UI -->
+  <div id="collectorUI" style="display:none;">
+    <h3>📱 Collector Mode</h3>
+    <button id="start">Start Tracking</button>
+    <button id="stop">Stop Tracking</button>
+    <pre id="log"></pre>
+  </div>
+
+  <!-- Viewer UI -->
+  <div id="viewerUI" style="display:none;">
+    <h3>🚌 Viewer Mode</h3>
+    <div id="map"></div>
+  </div>
+
+  <script>
+    // 🔥 Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDF61XkNyi4bwpSZNx_jaY_zWUEupbHcjE",
+      authDomain: "theroadapp01.firebaseapp.com",
+      databaseURL: "https://theroadapp01-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "theroadapp01",
+      storageBucket: "theroadapp01.firebasestorage.app",
+      messagingSenderId: "1091755609237",
+      appId: "1:1091755609237:web:ff91960fe187e2a96f5f9c",
+      measurementId: "G-XVDQHLMSFF"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function selectRole(role) {
+      document.getElementById("roleSelect").style.display = "none";
+      if(role === 'collector') startCollector();
+      else startViewer();
+    }
+
+    // ===== COLLECTOR MODE =====
+    function startCollector() {
+      const ui = document.getElementById("collectorUI");
+      ui.style.display = "block";
+
+      let watchId = null;
+      let tracking = false;
+      let lastLat = null, lastLng = null;
+
+      const logEl = document.getElementById("log");
+      function log(msg) { logEl.textContent += msg + "\n"; }
+
+      // Update last known location
+      navigator.geolocation.watchPosition(pos => {
+        lastLat = pos.coords.latitude;
+        lastLng = pos.coords.longitude;
+      }, err => log("⚠️ Location error: " + err.message), { enableHighAccuracy: true });
+
+      document.getElementById("start").onclick = () => {
+        if(tracking) return;
+        tracking = true;
+        log("Tracking started...");
+
+        // GPS tracking
+        watchId = navigator.geolocation.watchPosition(pos => {
+          const data = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            speed: pos.coords.speed,
+            time: Date.now()
+          };
+          db.ref("bus/location").set(data);
+          log("GPS: " + JSON.stringify(data));
+        }, err => log("⚠️ GPS error: " + err.message), { enableHighAccuracy: true });
+
+        // Motion tracking
+        window.addEventListener("devicemotion", motionHandler);
+      };
+
+      document.getElementById("stop").onclick = () => {
+        tracking = false;
+        if(watchId) navigator.geolocation.clearWatch(watchId);
+        window.removeEventListener("devicemotion", motionHandler);
+        log("Tracking stopped.");
+      };
+
+      function motionHandler(e) {
+        if(!tracking) return;
+        const motion = {
+          x: e.accelerationIncludingGravity.x,
+          y: e.accelerationIncludingGravity.y,
+          z: e.accelerationIncludingGravity.z,
+          time: Date.now()
+        };
+        db.ref("bus/motion").set(motion);
+
+        const threshold = 15;
+        if(Math.abs(motion.x) > threshold || Math.abs(motion.y) > threshold || Math.abs(motion.z) > threshold){
+          db.ref("bus/potholes").push({
+            lat: lastLat,
+            lng: lastLng,
+            time: Date.now()
+          });
+          log("⚠️ Pothole detected!");
+        }
+      }
+    }
+
+    // ===== VIEWER MODE =====
+    function startViewer() {
+      const ui = document.getElementById("viewerUI");
+      ui.style.display = "block";
+
+      const map = L.map('map').setView([20.59,78.96],5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+      let busMarker = null;
+
+      // Live bus location
+      db.ref("bus/location").on("value", snap => {
+        const data = snap.val();
+        if(!data) return;
+        if(busMarker) busMarker.setLatLng([data.lat, data.lng]);
+        else busMarker = L.marker([data.lat, data.lng]).addTo(map).bindPopup("🚌 Bus Location");
+        map.setView([data.lat, data.lng], 16);
+      });
+
+      // Live potholes
+      db.ref("bus/potholes").on("child_added", snap => {
+        const data = snap.val();
+        if(!data) return;
+        L.marker([data.lat, data.lng], {
+          icon: L.icon({
+            iconUrl: "https://img.icons8.com/color/48/000000/error.png",
+            iconSize:[30,30]
+          })
+        })
+        .addTo(map)
+        .bindPopup("⚠️ Pothole detected here!");
+      });
+    }
+  </script>
+</body>
+</html>
