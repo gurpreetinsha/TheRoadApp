@@ -1,73 +1,73 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Road Viewer</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <style>
-    body{margin:0;display:flex;height:100vh}
-    #mapA,#mapB{flex:1}
-  </style>
-</head>
-<body>
-  <div id="mapA"></div>
+<!doctype html> 
+<html> 
+<head> 
+  <meta charset="utf-8"/> 
+  <title>Road Viewer</title> 
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/> 
+  <style> 
+    body{margin:0;display:flex;height:100vh} 
+    #mapA,#mapB{flex:1} 
+  </style> 
+</head> 
+<body> 
+  <div id="mapA"></div> 
   <div id="mapB"></div>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script>
-const SUPABASE_URL = "https://jnjhkmlvfmynxyjypyie.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpuamhrbWx2Zm15bnh5anlweWllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyNTA4MjMsImV4cCI6MjA3MzgyNjgyM30.Xp1Y3UvqQhbuxP3KV_1dtW8Zff-yy0fA94G5O3wecOo";
-const POLL=3000;
-
-const mapA=L.map("mapA").setView([20,0],3);
-const mapB=L.map("mapB").setView([20,0],3);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(mapA);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(mapB);
-
-const buses={};
-const potholes=L.layerGroup().addTo(mapB);
-
-// Bus tracking
-async function loadBuses(){
-  const url=`${SUPABASE_URL}/rest/v1/bus_location?select=*&order=ts.desc&limit=50`;
-  const res=await fetch(url,{headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}});
-  const rows=await res.json();
-  const latest={};
-  rows.forEach(r=>{ if(!latest[r.device_id]) latest[r.device_id]=r; });
-
-  for(const r of Object.values(latest)){
-    if(!r.lat||!r.lon) continue;
-    const pos=[r.lat,r.lon];
-    if(buses[r.device_id]){
-      buses[r.device_id].setLatLng(pos);
-    }else{
-      buses[r.device_id]=L.marker(pos,{icon:L.icon({
-        iconUrl:"https://cdn-icons-png.flaticon.com/512/61/61229.png",
-        iconSize:[32,32]
-      })}).addTo(mapA).bindPopup(r.device_id);
-    }
-  }
-}
-
-// Pothole tracking
-async function loadPotholes(){
-  const url=`${SUPABASE_URL}/rest/v1/potholes?select=*&order=ts.desc&limit=200`;
-  const res=await fetch(url,{headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}});
-  const rows=await res.json();
-  potholes.clearLayers();
-  rows.forEach(r=>{
-    if(r.lat&&r.lon){
-      let color="green";
-      if(r.severity==="high") color="red";
-      else if(r.severity==="medium") color="orange";
-      L.circleMarker([r.lat,r.lon],{radius:6,color,fillColor:color,fillOpacity:0.8})
-        .addTo(potholes).bindPopup(`${r.severity} pothole<br>${r.device_id}`);
-    }
-  });
-}
-
-setInterval(()=>{loadBuses();loadPotholes();},POLL);
-loadBuses();loadPotholes();
-</script>
-</body>
+ 
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script> 
+<script> 
+const SUPABASE_URL = "https://jnjhkmlvfmynxyjypyie.supabase.co"; 
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpuamhrbWx2Zm15bnh5anlweWllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyNTA4MjMsImV4cCI6MjA3MzgyNjgyM30.Xp1Y3UvqQhbuxP3KV_1dtW8Zff-yy0fA94G5O3wecOo"; 
+const POLL=3000; 
+ 
+const mapA=L.map("mapA").setView([20,0],3); 
+const mapB=L.map("mapB").setView([20,0],3); 
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(mapA); 
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(mapB); 
+ 
+const buses={}; 
+const potholes=L.layerGroup().addTo(mapB); 
+ 
+// Bus tracking 
+async function loadBuses(){ 
+  const url=`${SUPABASE_URL}/rest/v1/bus_location?select=*&order=ts.desc&limit=50`; 
+  const res=await fetch(url,{headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}}); 
+  const rows=await res.json(); 
+  const latest={}; 
+  rows.forEach(r=>{ if(!latest[r.device_id]) latest[r.device_id]=r; }); 
+ 
+  for(const r of Object.values(latest)){ 
+    if(!r.lat||!r.lon) continue; 
+    const pos=[r.lat,r.lon]; 
+    if(buses[r.device_id]){ 
+      buses[r.device_id].setLatLng(pos); 
+    }else{ 
+      buses[r.device_id]=L.marker(pos,{icon:L.icon({ 
+        iconUrl:"https://cdn-icons-png.flaticon.com/512/61/61229.png", 
+        iconSize:[32,32] 
+      })}).addTo(mapA).bindPopup(r.device_id); 
+    } 
+  } 
+} 
+ 
+// Pothole tracking 
+async function loadPotholes(){ 
+  const url=`${SUPABASE_URL}/rest/v1/potholes?select=*&order=ts.desc&limit=200`; 
+  const res=await fetch(url,{headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}}); 
+  const rows=await res.json(); 
+  potholes.clearLayers(); 
+  rows.forEach(r=>{ 
+    if(r.lat&&r.lon){ 
+      let color="green"; 
+      if(r.severity==="high") color="red"; 
+      else if(r.severity==="medium") color="orange"; 
+      L.circleMarker([r.lat,r.lon],{radius:6,color,fillColor:color,fillOpacity:0.8}) 
+        .addTo(potholes).bindPopup(`${r.severity} pothole<br>${r.device_id}`); 
+    } 
+  }); 
+} 
+ 
+setInterval(()=>{loadBuses();loadPotholes();},POLL); 
+loadBuses();loadPotholes(); 
+</script> 
+</body> 
 </html>
