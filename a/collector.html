@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Road Collector</title>
+  <style>body{font-family:sans-serif;margin:20px}button{margin:6px}</style>
+</head>
+<body>
+  <h2>📱 Road Data Collector</h2>
+  <button id="perm">Enable Sensors</button>
+  <button id="start" disabled>Start</button>
+  <button id="stop" disabled>Stop</button>
+  <pre id="log"></pre>
+
+<script>
+const SUPABASE_URL = "https://jnjhkmlvfmynxyjypyie.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpuamhrbWx2Zm15bnh5anlweWllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyNTA4MjMsImV4cCI6MjA3MzgyNjgyM30.Xp1Y3UvqQhbuxP3KV_1dtW8Zff-yy0fA94G5O3wecOo";
+const TABLE_LOC = "bus_location";
+const TABLE_POT = "potholes";
+
+const deviceId = "bus-" + Math.random().toString(36).slice(2,8);
+let geoWatch=null, lastMag=null, lastLoc=null;
+
+function log(msg){
+  document.getElementById("log").textContent += msg+"\n";
+}
+
+document.getElementById("perm").onclick = async () => {
+  if(DeviceMotionEvent?.requestPermission){
+    await DeviceMotionEvent.requestPermission();
+  }
+  document.getElementById("start").disabled=false;
+};
+
+document.getElementById("start").onclick = () => {
+  document.getElementById("start").disabled=true;
+  document.getElementById("stop").disabled=false;
+
+  // GPS stream → bus_location
+  geoWatch = navigator.geolocation.watchPosition(pos=>{
+    lastLoc = {lat:pos.coords.latitude, lon:pos.coords.longitude, speed:pos.coords.speed, heading:pos.coords.heading};
+    sendToSupabase(TABLE_LOC,{
+      device_id:deviceId, lat:lastLoc.lat, lon:lastLoc.lon,
+      speed:lastLoc.speed, heading:lastLoc.heading, ts:new Date().toISOString()
+    });
+    log(`Bus @ ${lastLoc.lat},${lastLoc.lon}`);
+  }, err=>log("GPS error "+err.message), {enableHighAccuracy:true});
+
+  // Motion stream → potholes
+  window.addEventListener("devicemotion", handleMotion);
+};
+
+document.getElementById("stop").onclick = () => {
+  if(geoWatch) navigator.geolocation.clearWatch(geoWatch);
+  window.removeEventListener("devicemotion", handleMotion);
+  document.getElementById("start").disabled=false;
+  document.getElementById("stop").disabled=true;
+};
+
+function handleMotion(e){
+  const acc=e.accelerationIncludingGravity;
+  if(!acc || !lastLoc) return;
+  const mag=Math.sqrt(acc.x**2+acc.y**2+acc.z**2);
+  let severity=null;
+
+  if(lastMag!==null){
+    const delta=Math.abs(mag-lastMag);
+    if(delta>6) severity="high";
+    else if(delta>3) severity="medium";
+  }
+  lastMag=mag;
+  if(severity){
+    sendToSupabase(TABLE_POT,{
+      device_id:deviceId, lat:lastLoc.lat, lon:lastLoc.lon,
+      severity:severity, ts:new Date().toISOString()
+    });
+    log(`Pothole ${severity} at ${lastLoc.lat},${lastLoc.lon}`);
+  }
+}
+
+function sendToSupabase(table,row){
+  fetch(`${SUPABASE_URL}/rest/v1/${table}`,{
+    method:"POST",
+    headers:{
+      "apikey":SUPABASE_KEY,
+      "Authorization":"Bearer "+SUPABASE_KEY,
+      "Content-Type":"application/json",
+      "Prefer":"return=minimal"
+    },
+    body:JSON.stringify(row)
+  });
+}
+</script>
+</body>
+</html>
