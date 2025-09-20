@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RoadWatch - Real-time Monitoring</title>
+  <title>TheRoadApp - Real-time Monitoring</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
@@ -16,7 +16,7 @@
     body {
       margin: 0;
       font-family: 'Space Grotesk', sans-serif;
-      background: #1a1a1a; /* Darker background */
+      background: #1a1a1a;
       overflow: hidden;
     }
 
@@ -26,12 +26,11 @@
       width: 100vw;
       z-index: 1;
     }
-    /* Custom cursor for reporting mode */
     .crosshair-cursor {
         cursor: crosshair !important;
     }
 
-    /* --- Glassmorphism Control Panel --- */
+    /* --- Glassmorphism Control Panel (Reduced Intensity) --- */
     .control-panel {
       position: absolute;
       top: 20px;
@@ -40,12 +39,13 @@
       padding: 20px 25px;
       width: 280px;
 
-      background: rgba(25, 25, 25, 0.7);
-      backdrop-filter: blur(15px);
-      -webkit-backdrop-filter: blur(15px);
+      /* Reduced intensity values */
+      background: rgba(35, 35, 35, 0.55);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.25);
 
       color: #f0f0f0;
     }
@@ -79,61 +79,30 @@
       margin-bottom: 15px;
     }
 
-    .layer-control span {
-      font-size: 1rem;
-      font-weight: 500;
-    }
+    .layer-control span { font-size: 1rem; font-weight: 500; }
 
-    .switch {
-      position: relative; display: inline-block; width: 50px; height: 28px;
-    }
+    .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
     .switch input { display: none; }
-    .slider {
-      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-      background-color: rgba(255, 255, 255, 0.2); transition: .4s; border-radius: 28px;
-    }
-    .slider:before {
-      position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px;
-      background-color: white; transition: .4s; border-radius: 50%;
-    }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255, 255, 255, 0.2); transition: .4s; border-radius: 28px; }
+    .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
     input:checked + .slider { background-color: #007BFF; }
     input:checked + .slider:before { transform: translateX(22px); }
 
     /* --- Hazard Report Button & Form --- */
     #report-hazard-btn {
-        width: 100%;
-        padding: 12px;
-        font-family: 'Space Grotesk', sans-serif;
-        font-size: 1rem;
-        font-weight: 500;
-        color: #fff;
-        background-color: #007BFF;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background-color 0.3s, transform 0.1s;
+        width: 100%; padding: 12px; font-family: 'Space Grotesk', sans-serif; font-size: 1rem;
+        font-weight: 500; color: #fff; background-color: #007BFF; border: none; border-radius: 8px;
+        cursor: pointer; transition: background-color 0.3s, transform 0.1s;
     }
     #report-hazard-btn:hover { background-color: #0056b3; }
     #report-hazard-btn:active { transform: scale(0.98); }
-    #report-hazard-btn.reporting-active {
-        background-color: #dc3545; /* Red for cancel */
-    }
+    #report-hazard-btn.reporting-active { background-color: #dc3545; }
 
     .hazard-form select, .hazard-form button {
-        width: 100%;
-        padding: 8px;
-        margin-top: 8px;
-        border-radius: 5px;
-        border: 1px solid #555;
-        background: #333;
-        color: #fff;
-        font-family: 'Space Grotesk', sans-serif;
+        width: 100%; padding: 8px; margin-top: 8px; border-radius: 5px; border: 1px solid #555;
+        background: #333; color: #fff; font-family: 'Space Grotesk', sans-serif;
     }
-     .hazard-form button {
-        background: #007BFF;
-        cursor: pointer;
-        border: none;
-    }
+    .hazard-form button { background: #007BFF; cursor: pointer; border: none; }
   </style>
 </head>
 <body>
@@ -141,7 +110,7 @@
   <div id="map"></div>
 
   <div class="control-panel">
-    <h1>RoadWatch</h1>
+    <h1>TheRoadApp</h1>
     <p>Real-time Monitoring</p>
 
     <hr class="divider">
@@ -174,10 +143,7 @@
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpuamhrbWx2Zm15bnh5anlweWllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyNTA4MjMsImV4cCI6MjA3MzgyNjgyM30.Xp1Y3UvqQhbuxP3KV_1dtW8Zff-yy0fA94G5O3wecOo";
   const POLL = 3000;
 
-  // Initialize map with zoomControl set to false
-  const map = L.map("map", {
-      zoomControl: false
-  }).setView([20, 0], 3);
+  const map = L.map("map", { zoomControl: false }).setView([20, 0], 3);
 
   L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -187,64 +153,55 @@
   const busLayer = L.layerGroup().addTo(map);
   const potholeLayer = L.layerGroup().addTo(map);
 
-  // Use the new SVG bus logo
+  // --- NEW: White SVG Bus Icon via Data URI ---
+  // 1. Define the SVG string with the fill="white" attribute added to the path.
+  const whiteBusSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 453.543 453.543"><g><path fill="white" d="M367.524,92.122c-4.208-21.045-17.678-29.463-37.882-37.882c-19.918-8.299-67.648-18.229-102.872-18.507C191.548,36.012,143.819,45.941,123.9,54.24c-20.204,8.418-33.673,16.836-37.882,37.882L70.866,208.794V369.56h26.096v25.211c0,30.739,44.984,30.739,44.984,0V369.56h83.048h0.263h86.341v25.211c0,30.739,44.983,30.739,44.983,0V369.56h26.096V208.794L367.524,92.122z M162.625,65.184h62.631h65.662c12.628,0,12.628,18.941,0,18.941h-65.815h-62.478C149.997,84.125,149.997,65.184,162.625,65.184z M119.472,319.162c-11.918,0-21.58-9.662-21.58-21.58s9.662-21.579,21.58-21.579s21.58,9.661,21.58,21.579S131.39,319.162,119.472,319.162z M225.256,221.09H110.797c-11.206,0-13.552-8.051-12.452-16.162l11.793-84.621c1.62-10.281,5.105-17.059,18.444-17.059h96.521h99.857c13.34,0,16.824,6.778,18.443,17.059l11.795,84.621c1.1,8.111-1.246,16.162-12.452,16.162H225.256z M334.07,319.162c-11.918,0-21.579-9.662-21.579-21.58s9.661-21.579,21.579-21.579s21.579,9.661,21.579,21.579S345.988,319.162,334.07,319.162z"/></g></svg>`;
+  // 2. URL-encode the SVG string and create the Data URI.
+  const busIconUrl = "data:image/svg+xml," + encodeURIComponent(whiteBusSvg);
+
   const busIcon = L.icon({
-      iconUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e6/Bus-logo.svg",
+      iconUrl: busIconUrl,
       iconSize: [35, 35],
       iconAnchor: [17, 17]
   });
 
   // --- Data Loading Functions ---
-
-  async function loadBuses() {
+  async function loadBuses() { /* ... function is unchanged ... */
     const url = `${SUPABASE_URL}/rest/v1/bus_location?select=*&order=ts.desc&limit=50`;
     try {
         const res = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY } });
         const rows = await res.json();
-
         const latest = {};
         rows.forEach(r => { if (!latest[r.device_id]) latest[r.device_id] = r; });
-
         for (const r of Object.values(latest)) {
             if (!r.lat || !r.lon) continue;
             const pos = [r.lat, r.lon];
-            if (busMarkers[r.device_id]) {
-                busMarkers[r.device_id].setLatLng(pos);
-            } else {
-                busMarkers[r.device_id] = L.marker(pos, { icon: busIcon })
-                    .addTo(busLayer)
-                    .bindPopup(`<b>Bus ID:</b> ${r.device_id}`);
-            }
+            if (busMarkers[r.device_id]) { busMarkers[r.device_id].setLatLng(pos); }
+            else { busMarkers[r.device_id] = L.marker(pos, { icon: busIcon }).addTo(busLayer).bindPopup(`<b>Bus ID:</b> ${r.device_id}`); }
         }
-    } catch(error) {
-        console.error("Failed to load bus data:", error);
-    }
+    } catch(error) { console.error("Failed to load bus data:", error); }
   }
 
-  async function loadPotholes() {
+  async function loadPotholes() { /* ... function is unchanged ... */
     const url = `${SUPABASE_URL}/rest/v1/potholes?select=*&order=ts.desc&limit=200`;
     try {
         const res = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY } });
         const rows = await res.json();
         potholeLayer.clearLayers();
-
         rows.forEach(r => {
             if (r.lat && r.lon) {
                 let color = "green";
                 if (r.severity === "high") color = "red";
                 else if (r.severity === "medium") color = "orange";
-
                 L.circleMarker([r.lat, r.lon], { radius: 7, color, fillColor: color, fillOpacity: 0.8, weight: 1.5 })
                   .addTo(potholeLayer)
                   .bindPopup(`<b>Pothole Report</b><br>Severity: ${r.severity}<br>Source: ${r.device_id}`);
             }
         });
-    } catch(error) {
-        console.error("Failed to load pothole data:", error);
-    }
+    } catch(error) { console.error("Failed to load pothole data:", error); }
   }
 
-  // --- NEW: Hazard Reporting Feature ---
+  // --- Hazard Reporting Feature ---
   const reportBtn = document.getElementById('report-hazard-btn');
   let isReportingMode = false;
   let reportPopup = null;
@@ -255,75 +212,35 @@
       reportBtn.classList.add('reporting-active');
       L.DomUtil.addClass(map.getContainer(), 'crosshair-cursor');
   }
-
   function exitReportingMode() {
       isReportingMode = false;
       reportBtn.textContent = "Report Hazard";
       reportBtn.classList.remove('reporting-active');
       L.DomUtil.removeClass(map.getContainer(), 'crosshair-cursor');
-      if (reportPopup) {
-          map.closePopup(reportPopup);
-          reportPopup = null;
-      }
+      if (reportPopup) { map.closePopup(reportPopup); reportPopup = null; }
   }
-
-  reportBtn.addEventListener('click', () => {
-      isReportingMode ? exitReportingMode() : enterReportingMode();
-  });
+  reportBtn.addEventListener('click', () => { isReportingMode ? exitReportingMode() : enterReportingMode(); });
 
   async function submitHazard(lat, lon, severity) {
       const url = `${SUPABASE_URL}/rest/v1/potholes`;
       try {
           const response = await fetch(url, {
               method: 'POST',
-              headers: {
-                  'apikey': SUPABASE_KEY,
-                  'Authorization': `Bearer ${SUPABASE_KEY}`,
-                  'Content-Type': 'application/json',
-                  'Prefer': 'return=minimal'
-              },
-              body: JSON.stringify({
-                  lat: lat,
-                  lon: lon,
-                  severity: severity,
-                  device_id: 'web-report'
-              })
+              headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+              body: JSON.stringify({ lat: lat, lon: lon, severity: severity, device_id: 'web-report' })
           });
           if (!response.ok) throw new Error('Failed to submit report.');
-          console.log("Hazard reported successfully!");
-          loadPotholes(); // Refresh potholes layer to show the new one
-      } catch (error) {
-          console.error("Error submitting hazard:", error);
-          alert("Could not submit report. Please try again.");
-      }
+          loadPotholes();
+      } catch (error) { console.error("Error submitting hazard:", error); alert("Could not submit report."); }
   }
 
   map.on('click', function(e) {
       if (!isReportingMode) return;
-
       const lat = e.latlng.lat;
       const lon = e.latlng.lng;
-
-      const formHtml = `
-          <div class="hazard-form">
-              <b>Report Hazard at this Location</b>
-              <select id="severity-select">
-                  <option value="low">Low Severity</option>
-                  <option value="medium">Medium Severity</option>
-                  <option value="high">High Severity</option>
-              </select>
-              <button id="submit-hazard-btn">Submit</button>
-          </div>
-      `;
-
-      reportPopup = L.popup()
-          .setLatLng(e.latlng)
-          .setContent(formHtml)
-          .openOn(map);
-
-      // We need to get the button *after* the popup is created
-      const submitBtn = document.getElementById('submit-hazard-btn');
-      submitBtn.addEventListener('click', () => {
+      const formHtml = `<div class="hazard-form"><b>Report Hazard at this Location</b><select id="severity-select"><option value="low">Low Severity</option><option value="medium">Medium Severity</option><option value="high">High Severity</option></select><button id="submit-hazard-btn">Submit</button></div>`;
+      reportPopup = L.popup().setLatLng(e.latlng).setContent(formHtml).openOn(map);
+      document.getElementById('submit-hazard-btn').addEventListener('click', () => {
           const severity = document.getElementById('severity-select').value;
           submitHazard(lat, lon, severity);
           exitReportingMode();
@@ -331,22 +248,13 @@
   });
 
   // --- UI Toggles ---
-  document.getElementById('toggle-buses').addEventListener('change', (e) => {
-    map.hasLayer(busLayer) ? map.removeLayer(busLayer) : map.addLayer(busLayer);
-  });
-
-  document.getElementById('toggle-potholes').addEventListener('change', (e) => {
-    map.hasLayer(potholeLayer) ? map.removeLayer(potholeLayer) : map.addLayer(potholeLayer);
-  });
+  document.getElementById('toggle-buses').addEventListener('change', () => { map.hasLayer(busLayer) ? map.removeLayer(busLayer) : map.addLayer(busLayer); });
+  document.getElementById('toggle-potholes').addEventListener('change', () => { map.hasLayer(potholeLayer) ? map.removeLayer(potholeLayer) : map.addLayer(potholeLayer); });
 
   // --- Initial Load & Polling ---
-  function pollData() {
-      loadBuses();
-      loadPotholes();
-  }
+  function pollData() { loadBuses(); loadPotholes(); }
   setInterval(pollData, POLL);
   pollData();
-
 </script>
 </body>
 </html>
